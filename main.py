@@ -152,10 +152,10 @@ async def parse_products():
             if not product_id:
                 continue
 
-            product_url = f'https://www.wildberries.ru/catalog/{product_id}/detail.aspx'
+            product_url_raw = f'https://www.wildberries.ru/catalog/{product_id}/detail.aspx'
 
             try:
-                await page_obj.goto(product_url, wait_until='domcontentloaded', timeout=30000)
+                await page_obj.goto(product_url_raw, wait_until='domcontentloaded', timeout=30000)
                 await page_obj.wait_for_timeout(3000)
 
                 card_data = card_responses.get(product_id, {})
@@ -230,22 +230,66 @@ async def parse_products():
                     else:
                         actual_price = price_basic
 
-            characteristics_json = json.dumps(options, ensure_ascii=False) if options else ''
+            description_value = (
+                description.strip() if isinstance(description, str) else ''
+            )
+            description_value = description_value if description_value else 'Описание отсутствует'
+
+            images_str = ', '.join(images) if images else 'Изображения отсутствуют'
+
+            characteristics_json = (
+                json.dumps(options, ensure_ascii=False) if options else ''
+            )
+            characteristics_json = (
+                characteristics_json if characteristics_json else 'Характеристики отсутствуют'
+            )
+
+            seller_name_raw = product.get('supplier', '')
+            if isinstance(seller_name_raw, str):
+                seller_name_raw = seller_name_raw.strip()
+            seller_name = seller_name_raw if seller_name_raw else 'Название селлера отсутствует'
+
+            supplier_id = product.get('supplierId')
+            seller_link_raw = f'https://www.wildberries.ru/seller/{supplier_id}' if supplier_id else ''
+            seller_link = seller_link_raw if seller_link_raw else 'Ссылка на селлера отсутствует'
+
+            sizes_str = ', '.join(sizes) if sizes else 'Размеры отсутствуют'
+
+            total_quantity_raw = product.get('totalQuantity')
+            total_quantity = (
+                total_quantity_raw if total_quantity_raw not in (None, '') else 'Остатки отсутствуют'
+            )
+
+            rating_raw = product.get('reviewRating')
+            rating = rating_raw if rating_raw not in (None, '') else 'Рейтинг отсутствует'
+
+            feedbacks_raw = product.get('feedbacks')
+            feedbacks = feedbacks_raw if feedbacks_raw not in (None, '') else 'Количество отзывов отсутствует'
+
+            product_url = product_url_raw if product_url_raw else 'Ссылка на товар отсутствует'
+            product_id_value = product_id if product_id else 'Артикул отсутствует'
+
+            product_name_raw = product.get('name', '')
+            if isinstance(product_name_raw, str):
+                product_name_raw = product_name_raw.strip()
+            product_name = product_name_raw if product_name_raw else 'Название отсутствует'
+
+            actual_price_value = actual_price if actual_price > 0 else 'Цена отсутствует'
 
             result = {
                 'Ссылка на товар': product_url,
-                'Артикул': product_id,
-                'Название': product.get('name', ''),
-                'Цена': actual_price,
-                'Описание': description,
-                'Ссылки на изображения': ', '.join(images),
+                'Артикул': product_id_value,
+                'Название': product_name,
+                'Цена': actual_price_value,
+                'Описание': description_value,
+                'Ссылки на изображения': images_str,
                 'Характеристики': characteristics_json,
-                'Название селлера': product.get('supplier', ''),
-                'Ссылка на селлера': f'https://www.wildberries.ru/seller/{product.get("supplierId", "")}',
+                'Название селлера': seller_name,
+                'Ссылка на селлера': seller_link,
                 'Размеры': sizes_str,
-                'Остатки': product.get('totalQuantity', 0),
-                'Рейтинг': product.get('reviewRating', 0),
-                'Количество отзывов': product.get('feedbacks', 0)
+                'Остатки': total_quantity,
+                'Рейтинг': rating,
+                'Количество отзывов': feedbacks
             }
             results.append(result)
 
